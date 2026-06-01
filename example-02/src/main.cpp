@@ -2,18 +2,17 @@
 #include <WiFi.h>
 
 // EN: WiFi credentials come from the repo-wide shared/include/secrets.h
-//     (gitignored). It exposes WIFI_SSID and WIFI_PASSWORD, picked between
-//     a home network and a hotspot via WIFI_USE_HOTSPOT.
+//     (gitignored). It exposes WIFI_SSID, WIFI_PASSWORD, and the helper
+//     printWifiTarget() (from wifi_log.h) that logs which slot the build
+//     is using (home or hotspot).
 // SL: WiFi gesla so v skupni datoteki shared/include/secrets.h (gitignored).
-//     Ta razkriva WIFI_SSID in WIFI_PASSWORD, izbiraš med domačim omrežjem
-//     in razrednim hotspotom prek WIFI_USE_HOTSPOT.
+//     Razkriva WIFI_SSID, WIFI_PASSWORD in pomožno funkcijo printWifiTarget()
+//     (iz wifi_log.h), ki izpiše, katero gnezdo (home ali hotspot) trenutna
+//     gradnja uporablja.
 #include <secrets.h>
 #include <wifi_log.h>
 
 void setup() {
-  // EN: setup code — runs once when the device boots.
-  // SL: koda za nastavitve — izvede se enkrat, ko se naprava zažene.
-
   // EN: set the serial communication speed to 115200 bits/s.
   // SL: nastavimo hitrost serijske komunikacije na 115200 bitov/s.
   Serial.begin(115200);
@@ -57,6 +56,4 @@ void setup() {
 }
 
 void loop() {
-  // EN: main code — runs repeatedly while the ESP32 is powered.
-  // SL: glavna koda — izvaja se ponavljajoče, dokler je ESP32 vklopljen.
 }
