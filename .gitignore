@@ -5,3 +5,6 @@ CLAUDE.md
 # Editor / IDE — local-only
 .vscode/
 *.code-workspace
+
+# Local secrets (WiFi credentials etc.) — see shared/include/secrets.example.h
+shared/include/secrets.h
