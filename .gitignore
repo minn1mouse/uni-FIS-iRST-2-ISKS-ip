@@ -1,0 +1,7 @@
+# Claude Code — kept local, not committed
+CLAUDE.md
+.claude/
+
+# Editor / IDE — local-only
+.vscode/
+*.code-workspace
