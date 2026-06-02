@@ -8,3 +8,9 @@ CLAUDE.md
 
 # Local secrets (WiFi credentials etc.) — see shared/include/secrets.example.h
 shared/include/secrets.h
+
+# Local Node.js config (your LAN IP etc.) — see shared/node/config.example.js
+shared/node/config.js
+
+# Node modules (per-folder; never committed)
+node_modules/

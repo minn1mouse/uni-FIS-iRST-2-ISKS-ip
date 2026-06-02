@@ -30,3 +30,12 @@
   #define WIFI_PASSWORD      WIFI_HOME_PASSWORD
   #define WIFI_NETWORK_LABEL "home"
 #endif
+
+// EN: LAN IP of your laptop / Node-server machine. Same value as in
+//     shared/node/config.js. Used by examples that connect OUT (e.g.
+//     homework-03). Port is per-example — set inline in each sketch.
+// SL: LAN IP tvojega prenosnika / Node strežnika. Enaka vrednost kot v
+//     shared/node/config.js. Uporabljajo ga primeri, ki se povezujejo
+//     ven (npr. homework-03). Vrata so per-primer — določi jih
+//     vrstično v vsaki skici.
+#define SERVER_HOST "192.168.0.100"
