@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>esp32 — WebSocket</title>
+</head>
+<body>
+    <h2>Primer s spletnim vtičnikom - WebSocket</h2>
+    <button onclick="prižgi()">Prižgi LED</button>
+    <button onclick="ugasni()">Ugasni LED</button>
+
+    <script>
+        // Vzpostavitev povezave preko spletnega vtičnika WebSocket.
+        // `location.hostname` se sam zamenja z IP-jem strani, ki si jo odprl
+        // (npr. 192.168.0.x), tako da datoteka deluje na katerikoli mreži —
+        // brez ročnega popravljanja IP-ja.
+        let povezava = new WebSocket('ws://' + location.hostname + ':81/');
+
+        function prižgi() {
+            povezava.send("1"); // na strežnik pošljem sporočilo z enko
+        }
+
+        function ugasni() {
+            povezava.send("0"); // na strežnik pošljem sporočilo z ničlo
+        }
+    </script>
+</body>
+</html>
