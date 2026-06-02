@@ -12,7 +12,11 @@ Enaka ideja kot v [node-example-00](../node-example-00/) — drobcen Node.js HTT
 
 - Node.js (LTS 18+).
 - `package.json` with `"type": "module"` is in the folder — needed for the `import` syntax.
-- The `hostname` constant in the script **must match your machine's actual LAN IP** for `listen()` to succeed. Default: `192.168.0.145`. Edit it if your laptop's IP is different — find yours with `ipconfig` on Windows.
+- **`shared/node/config.js`** configured with your real LAN IP. The host/port don't live in this example any more — they're imported from the repo-wide gitignored config. One-time setup:
+  ```powershell
+  Copy-Item ..\shared\node\config.example.js ..\shared\node\config.js
+  ```
+  Then open `shared/node/config.js` and set `SERVER_HOST` to your machine's LAN IP (find it with `ipconfig`). `config.js` is gitignored; only the template is committed.
 
 ### Run
 
@@ -52,7 +56,11 @@ Reachable from the ESP32, your phone, or any other device on the same LAN. **Not
 
 - Node.js (LTS 18+).
 - V mapi je `package.json` z `"type": "module"` — potreben za sintakso `import`.
-- Konstanta `hostname` v skripti se **mora ujemati z dejanskim LAN IP-jem tvojega računalnika**, sicer `listen()` ne bo uspel. Privzeto: `192.168.0.145`. Spremeni, če ima tvoj prenosnik drugačen IP — preveriš ga z `ipconfig` na Windows.
+- **`shared/node/config.js`** z nastavljenim LAN IP-jem. Naslov in vrata niso več v tem primeru — preneseta se iz skupne, gitignored konfiguracije. Enkratna nastavitev:
+  ```powershell
+  Copy-Item ..\shared\node\config.example.js ..\shared\node\config.js
+  ```
+  Nato odpri `shared/node/config.js` in `SERVER_HOST` nastavi na LAN IP svojega računalnika (`ipconfig`). `config.js` je gitignored; objavlja se le predloga.
 
 ### Zagon
 
