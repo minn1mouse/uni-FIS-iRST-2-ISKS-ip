@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vmesnik</title>
+</head>
+<body>
+    Pozdravljen IoT vmesnik!
+    <br>
+    <button id="pošljiSporočilo" onclick="pošljiSporočilo()">Pošlji JSON sporočilo</button>
+    <br>
+    Sporočilo: <input id="sporočilo" size="50" value='{"tipSporočila": "LED", "pin": 2, "vrednost": 1}'>
+
+    <script>
+        "use strict";
+
+        let ws = new WebSocket(`ws://${location.hostname}:8888`);
+
+        function pošljiSporočilo() {
+            let sporočilo = document.getElementById("sporočilo").value;
+            ws.send(sporočilo);
+        }
+    </script>
+</body>
+</html>
