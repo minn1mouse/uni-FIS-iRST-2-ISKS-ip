@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vmesnik</title>
+</head>
+<body>
+    Pozdravljen IoT vmesnik!
+    <br>
+    <button id="pošljiSporočilo" onclick="pošljiJSONSporočilo()">Pošlji JSON sporočilo</button>
+    <br>
+    Sporočilo: <input id="JSONsporočilo" size="50" value='{"tipSporočila": "LED", "pin": 2, "vrednost": 1}'>
+
+    <p>Zadnje sporočilo z ESP32: <span id="izpis1">—</span></p>
+
+    <!--
+        EN: HTML5 canvas — a fixed-size drawing surface. We grab its 2D
+            drawing context in JS and fill it with a colour based on the
+            incoming button state. New in this example.
+        SL: HTML5 platno — risalna površina fiksne velikosti. V JS
+            dobimo njen 2D kontekst risanja in ga zapolnimo z barvo
+            glede na prejeto stanje tipke. Novost v tem primeru.
+    -->
+    <canvas id="platno1" width="200" height="100" style="border: 1px dashed black"></canvas>
+
+    <script>
+        "use strict";
+
+        let izpis1 = document.getElementById("izpis1");
+
+        // EN: get the canvas element and its 2D context — the API used to
+        //     issue draw commands (fillStyle, fillRect, strokeStyle, etc).
+        // SL: dobimo element platno in njegov 2D kontekst — API za risarske
+        //     ukaze (fillStyle, fillRect, strokeStyle ipd.).
+        let plat = document.getElementById("platno1");
+        let platno1 = plat.getContext("2d");
+
+        let ws = new WebSocket(`ws://${location.hostname}:8888`);
+
+        function pošljiJSONSporočilo() {
+            let sporočilo = document.getElementById("JSONsporočilo").value;
+            ws.send(sporočilo);
+        }
+
+        // EN: receive handler. For `tipka` messages: update the text label
+        //     AND paint the canvas — pink when the button is pressed
+        //     (vrednost 1), white when released (vrednost 0). The canvas
+        //     gives instant visual feedback you can see across a room.
+        // SL: funkcija za sprejem. Za sporočila `tipka`: posodobimo
+        //     besedilo IN obarvamo platno — rožnato ob pritisku tipke
+        //     (vrednost 1), belo ob spustu (vrednost 0). Platno omogoča
+        //     takojšen vidni odziv, ki je viden tudi iz daljave.
+        ws.onmessage = function (event) {
+            let msg = JSON.parse(event.data);
+            switch (msg.tipSporočila) {
+                case "tipka":
+                    izpis1.textContent = event.data;
+                    platno1.fillStyle = (msg.vrednost == 1) ? "lightpink" : "white";
+                    platno1.fillRect(0, 0, 200, 100);
+                    break;
+            }
+        };
+    </script>
+</body>
+</html>
