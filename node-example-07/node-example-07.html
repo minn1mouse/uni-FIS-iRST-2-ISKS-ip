@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test</title>
+</head>
+<body>
+    Pozdrav s spletne strani HTML — uporaba knjižnice express!
+    <br>
+    <button id="pošljiSporočilo" onclick="pošljiSporočilo()">Pošlji sporočilo</button>
+    <br>
+
+    <!--
+        EN: input is pre-filled with a JSON payload of the same shape
+            homework-03 receives (tipSporočila / pin / vrednost). The
+            server JSON.parses whatever you send.
+        SL: vnosno polje je vnaprej napolnjeno s JSON sporočilom enake
+            oblike, kot jo prejema homework-03 (tipSporočila / pin /
+            vrednost). Strežnik z JSON.parse razčleni, karkoli pošlješ.
+    -->
+    Sporočilo: <input id="sporočilo" size="50" value='{"tipSporočila": "LED", "pin": 2, "vrednost": 1}'>
+
+    <script>
+        "use strict";
+
+        let ws = new WebSocket(`ws://${location.hostname}:8888`);
+
+        function pošljiSporočilo() {
+            let sporočilo = document.getElementById("sporočilo").value;
+            ws.send(sporočilo);
+        }
+    </script>
+</body>
+</html>
