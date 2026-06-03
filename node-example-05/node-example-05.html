@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test</title>
+</head>
+<body>
+    Pozdravljen IoT vmesnik!
+    <br>
+    <script>
+        "use strict";
+        // EN: open a WebSocket to the same host that served this page,
+        //     on port 8888. `location.hostname` is whatever the user
+        //     typed in the address bar (IP or hostname), so the
+        //     connection always targets the right server without
+        //     hardcoding the IP. No messages are sent yet — the next
+        //     example layers send/receive on top of this socket.
+        // SL: odpremo WebSocket na isti gostitelj, ki je postregel to
+        //     stran, na vratih 8888. `location.hostname` je tisto, kar
+        //     je uporabnik vpisal v naslovno vrstico (IP ali ime), tako
+        //     da povezava vedno cilja na pravi strežnik brez trdega
+        //     zakodiranja IP-ja. Sporočila se še ne pošiljajo — naslednji
+        //     primer doda pošiljanje/sprejemanje nad ta vtičnik.
+        let ws = new WebSocket(`ws://${location.hostname}:8888`);
+    </script>
+</body>
+</html>
