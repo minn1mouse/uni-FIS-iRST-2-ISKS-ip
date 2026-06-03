@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vmesnik</title>
+</head>
+<body>
+    Pozdravljen IoT vmesnik!
+    <br>
+    <button id="pošljiSporočilo" onclick="pošljiJSONSporočilo()">Pošlji JSON sporočilo</button>
+    <br>
+    Sporočilo: <input id="JSONsporočilo" size="50" value='{"tipSporočila": "LED", "pin": 2, "vrednost": 1}'>
+
+    <p>Zadnje sporočilo z ESP32: <span id="izpis1">—</span></p>
+
+    <script>
+        "use strict";
+
+        let izpis1 = document.getElementById("izpis1");
+
+        let ws = new WebSocket(`ws://${location.hostname}:8888`);
+
+        function pošljiJSONSporočilo() {
+            let sporočilo = document.getElementById("JSONsporočilo").value;
+            ws.send(sporočilo);
+        }
+
+        // EN: new in this example — listen for inbound messages. Node
+        //     forwards JSON pushed by the ESP32 (e.g. button events)
+        //     to all connected browsers. We parse it, switch on
+        //     `tipSporočila`, and update the page.
+        // SL: novost v tem primeru — poslušamo dohodna sporočila. Node
+        //     posreduje JSON, ki ga je poslal ESP32 (npr. dogodki tipke),
+        //     vsem priklopljenim brskalnikom. Sporočilo razčlenimo,
+        //     usmerimo po `tipSporočila` in posodobimo stran.
+        ws.onmessage = function (event) {
+            let msg = JSON.parse(event.data);
+            switch (msg.tipSporočila) {
+                case "tipka":
+                    izpis1.textContent = event.data;
+                    break;
+            }
+        };
+    </script>
+</body>
+</html>
