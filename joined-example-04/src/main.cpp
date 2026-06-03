@@ -1,66 +1,43 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <WebSocketsClient.h>
-#include <ArduinoJson.h>
 
 #include <secrets.h>
 #include <wifi_log.h>
 
-// EN: ESP32 side of joined-example-04 — identical to joined-example-03.
-//     Same bidirectional flow: receives LED commands from the browser
-//     via Node, and pushes its own `tipka` button events back. The
-//     **only** difference vs joined-03 is on the browser side: the page
-//     now renders the incoming `tipka` events on an HTML5 canvas (pink
-//     when pressed, white when released). No chip-side change.
-// SL: Stran ESP32 v joined-example-04 — identično kot joined-example-03.
-//     Enak dvosmerni potek: sprejema ukaze za LED iz brskalnika prek
-//     Node-a, in pošilja lastne dogodke tipke nazaj. **Edina** razlika v
-//     primerjavi z joined-03 je na strani brskalnika: stran zdaj
-//     dohodne `tipka` dogodke izrisuje na HTML5 platnu (rožnato ob
-//     pritisku, belo ob spustu). Na čipu se ne spremeni nič.
+// EN: ESP32 side of joined-example-04 — **live sensor streaming**.
+//     Reads an analog potentiometer on GPIO 34 (`analogRead` returns
+//     0–4095, the 12-bit ADC value), then ~20 times per second pushes
+//     the reading to the Node hub as a JSON message of shape
+//     `{"tipSporočila":"potenciometer","pin":34,"vrednost":<int>}`.
+//     Node forwards it to all browsers, which display the value.
+//     The same chip-only "just read + print to serial" sketch lives at
+//     example-12 — this example wires that sensor output up to a Node
+//     hub instead of the serial monitor.
+// SL: Stran ESP32 v joined-example-04 — **živi tok meritev senzorja**.
+//     Bere analogni potenciometer na GPIO 34 (`analogRead` vrne
+//     0–4095, 12-bitna vrednost ADC-ja), nato pa približno 20-krat na
+//     sekundo pošlje meritev na Node zvezdišče kot JSON sporočilo
+//     oblike `{"tipSporočila":"potenciometer","pin":34,"vrednost":<int>}`.
+//     Node ga posreduje vsem brskalnikom, ki vrednost prikažejo.
+//     Ista, samo-čipovska "preberi + izpiši na serijski" skica živi v
+//     example-12 — ta primer izhod senzorja namesto na serijski monitor
+//     usmeri na Node zvezdišče.
 const uint16_t SERVER_PORT = 8811;
-const uint8_t  BUTTON_PIN  = 18;
+const uint8_t  POT_PIN     = 34;
 
 WebSocketsClient webSocket;
 
-uint8_t LED1pin    = 2;
-bool    LED1status = LOW;
-
-int prejsnjeStanje = LOW;
-int trenutnoStanje;
+int vrednostPotenciometra = 0;
 
 void onWebSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
   switch (type) {
     case WStype_CONNECTED:
       Serial.printf("Povezana s strežnikom %s:%u\n", SERVER_HOST, SERVER_PORT);
       break;
-
     case WStype_DISCONNECTED:
       Serial.println("Povezava s strežnikom prekinjena.");
       break;
-
-    case WStype_TEXT: {
-      Serial.printf("Prejeto: %s\n", payload);
-
-      StaticJsonDocument<256> doc;
-      DeserializationError err = deserializeJson(doc, payload);
-      if (err) {
-        Serial.print("deserializeJson() — napaka: ");
-        Serial.println(err.c_str());
-        return;
-      }
-
-      const char* tip = doc["tipSporočila"];
-      if (tip && strcmp(tip, "LED") == 0) {
-        int pin      = doc["pin"];
-        int vrednost = doc["vrednost"];
-        if (pin == LED1pin) {
-          LED1status = (vrednost == 1) ? HIGH : LOW;
-        }
-      }
-      break;
-    }
-
     default:
       break;
   }
@@ -81,13 +58,11 @@ void setup() {
   Serial.print("IP naslov esp32 modula: ");
   Serial.println(WiFi.localIP());
 
-  pinMode(LED1pin, OUTPUT);
-  pinMode(BUTTON_PIN, INPUT);
-
-  digitalWrite(LED1pin, HIGH); delay(250);
-  digitalWrite(LED1pin, LOW);  delay(250);
-  digitalWrite(LED1pin, HIGH); delay(250);
-  digitalWrite(LED1pin, LOW);  delay(250);
+  pinMode(2, OUTPUT);
+  digitalWrite(2, HIGH); delay(250);
+  digitalWrite(2, LOW);  delay(250);
+  digitalWrite(2, HIGH); delay(250);
+  digitalWrite(2, LOW);  delay(250);
 
   webSocket.begin(SERVER_HOST, SERVER_PORT);
   webSocket.onEvent(onWebSocketEvent);
@@ -96,26 +71,21 @@ void setup() {
 void loop() {
   webSocket.loop();
 
-  // EN: drive the LED from the state set by incoming messages.
-  // SL: krmilimo LED glede na stanje, ki ga je nastavilo dohodno sporočilo.
-  digitalWrite(LED1pin, LED1status ? HIGH : LOW);
+  // EN: read the ADC, format a JSON payload, send. Inline raw-string
+  //     literal + `String + …` concatenation: simplest way to inject a
+  //     dynamic integer into JSON without ArduinoJson. The chip is a
+  //     producer here, so we never need to parse anything coming in.
+  // SL: preberi ADC, sestavi JSON, pošlji. Surov niz + `String + …`
+  //     združevanje: najpreprostejši način, da dinamično vrednost
+  //     vstaviš v JSON brez ArduinoJson-a. Čip je tu proizvajalec, zato
+  //     nam dohodnih sporočil ni treba razčlenjevati.
+  vrednostPotenciometra = analogRead(POT_PIN);
 
-  // EN: edge-detect the button — only send a message when the state
-  //     CHANGES, not every loop iteration. Uses a raw-string literal so
-  //     the JSON's double quotes don't need escaping. The 50 ms loop
-  //     delay below acts as crude debouncing.
-  // SL: zaznava roba na tipki — sporočilo pošljemo le ob SPREMEMBI
-  //     stanja, ne ob vsaki ponovitvi zanke. Uporabimo surov niz, tako
-  //     da dvojnih narekovajev v JSON-u ni treba ubežati. 50 ms
-  //     zakasnitev v zanki služi kot groba debouncing zaščita.
-  trenutnoStanje = digitalRead(BUTTON_PIN);
-  if (trenutnoStanje != prejsnjeStanje) {
-    String dataString = (trenutnoStanje == HIGH)
-        ? R"({"tipSporočila":"tipka","pin":18,"vrednost":1})"
-        : R"({"tipSporočila":"tipka","pin":18,"vrednost":0})";
-    webSocket.sendTXT(dataString);
-    prejsnjeStanje = trenutnoStanje;
-  }
+  String dataString = R"({"tipSporočila":"potenciometer","pin":34,"vrednost":)";
+  dataString += String(vrednostPotenciometra);
+  dataString += "}";
 
-  delay(50);
+  webSocket.sendTXT(dataString);
+
+  delay(50); // ~20 Hz stream
 }

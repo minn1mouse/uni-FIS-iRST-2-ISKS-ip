@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket</title>
+</head>
+<body>
+    <p>IoT vmesnik — WebSocket (živi tok potenciometra).</p>
+
+    <p>Surovo sporočilo: <span id="izpis1">—</span></p>
+    <p>Vrednost: <strong id="izpis2">—</strong> <span style="color:#888">(0–4095)</span></p>
+
+    <script>
+        "use strict";
+
+        let izpis1 = document.getElementById("izpis1");
+        let izpis2 = document.getElementById("izpis2");
+
+        let ws = new WebSocket(`ws://${location.hostname}:8888`);
+
+        // EN: incoming `potenciometer` messages arrive ~20 times per
+        //     second. Update both the raw-JSON readout and the value-
+        //     only readout. `textContent` is cheaper than `innerHTML`
+        //     and safe (the value isn't HTML).
+        // SL: dohodna sporočila `potenciometer` prihajajo ~20-krat na
+        //     sekundo. Posodobimo izpis surovega JSON-a in izpis samo
+        //     vrednosti. `textContent` je cenejši kot `innerHTML` in
+        //     varen (vrednost ni HTML).
+        ws.onmessage = function (event) {
+            let msg = JSON.parse(event.data);
+            switch (msg.tipSporočila) {
+                case "potenciometer":
+                    izpis1.textContent = event.data;
+                    izpis2.textContent = msg.vrednost;
+                    break;
+            }
+        };
+    </script>
+</body>
+</html>

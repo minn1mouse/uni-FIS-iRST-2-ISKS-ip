@@ -1,10 +1,10 @@
 {
-  "name": "node-example-11",
+  "name": "node-example-12",
   "version": "0.0.1",
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "node node-example-11.js"
+    "start": "node node-example-12.js"
   },
   "dependencies": {
     "express": "^4.21.1",

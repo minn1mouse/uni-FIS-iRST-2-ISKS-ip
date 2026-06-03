@@ -1,8 +1,8 @@
-# Joined example 04 — Visualise button events on an HTML5 canvas
+# Joined example 04 — Live potentiometer stream to the browser
 
-Identical chip + Node code to [joined-example-03](../joined-example-03/). The **only** difference is the browser HTML: in addition to the text line that shows the latest button JSON, the page now paints an HTML5 `<canvas>` — pink when the button is pressed, white when released. Same bidirectional flow, same JSON protocol, same Node router. The lesson is purely on the front-end: how to draw to a canvas in response to a stream of WebSocket events.
+The ESP32 reads an analog potentiometer on **GPIO 34** at ~20 Hz and pushes every reading as a JSON message through the Node hub to the browser. The browser displays the latest value live, no clicks needed. This is the natural next step after [example-12](../example-12/) (the same ADC reading, but printed to the serial monitor instead of streamed over the network).
 
-Enaka koda na čipu in Node-u kot v [joined-example-03](../joined-example-03/). **Edina** razlika je HTML strani brskalnika: poleg besedilne vrstice, ki kaže zadnji JSON tipke, stran zdaj barva HTML5 `<canvas>` — rožnato ob pritisku, belo ob spustu. Enaka dvosmerna povezava, enak JSON protokol, enak Node usmerjevalnik. Lekcija je čisto na strani brskalnika: kako risati na platno v odziv na tok WebSocket dogodkov.
+ESP32 bere analogni potenciometer na **GPIO 34** s frekvenco ~20 Hz in vsako meritev kot JSON sporočilo pošlje prek Node zvezdišča v brskalnik. Brskalnik najnovejšo vrednost prikazuje v živo, brez klikov. Naraven nadaljevalni korak po [example-12](../example-12/) (enaka ADC meritev, le da je izpisana na serijski monitor namesto poslana po omrežju).
 
 ---
 
@@ -10,72 +10,73 @@ Enaka koda na čipu in Node-u kot v [joined-example-03](../joined-example-03/). 
 
 ### Hardware
 
-Same as [joined-example-03](../joined-example-03/) — ESP32 + push button on GPIO 18 + onboard LED on GPIO 2 + a laptop on the same WiFi.
+- ESP32 dev board on USB.
+- A **10 kΩ potentiometer**: wiper → **GPIO 34**, one outer pin → **3.3 V**, other outer pin → **GND**. Without both outer pins connected the ADC reading sits at 0 — same gotcha as example-12.
+- Laptop on the same WiFi as the chip, running Node.
 
 ### Folder layout
 
 ```
 joined-example-04/
-├── platformio.ini          ← unchanged from joined-03
-├── src/main.cpp            ← unchanged from joined-03 (only the header comment updated)
-├── node-example-11/        ← Node side
-│   ├── node-example-11.js    ← unchanged in shape from joined-03's node-example-10.js
-│   ├── node-example-11.html  ← NEW: HTML5 canvas painted from button events
+├── platformio.ini          ← ESP32 build config (WebSockets lib only — no ArduinoJson here)
+├── src/main.cpp            ← reads ADC, streams JSON over WebSocket
+├── node-example-12/        ← Node side
+│   ├── node-example-12.js    ← Express + two WSS + handlePotenciometer router
+│   ├── node-example-12.html  ← Browser UI (live value display)
 │   └── package.json
 └── README.md
 ```
 
-### What's new vs joined-example-03
+### What's new vs joined-example-03/03a
 
-Only in `node-example-11.html`. Three additions:
+- **Sensor streaming (chip side).** Instead of edge-detecting a discrete button, the chip continuously samples an **analog** input and pushes a fresh JSON every 50 ms. New `tipSporočila` value: `"potenciometer"`.
+- **Higher message rate.** ~20 Hz instead of "once per button press". Node side intentionally **does not log every message** — at 20 Hz it would flood the terminal. Only unknown/malformed payloads get logged.
+- **Browser as live read-out.** `ws.onmessage` updates a value on every incoming message — same hook as joined-03a, just firing much more often. Next step would be plotting on the canvas you introduced in joined-03a.
+- **ArduinoJson dropped from `platformio.ini`.** The chip produces JSON (formats it from scratch with a raw-string literal + `String` concatenation) but doesn't consume any — no parser needed.
 
-1. **`<canvas id="platno1" width="200" height="100" style="border: 1px dashed black"></canvas>`** — a fixed-size drawing surface.
-2. **Get the 2D drawing context once at script start:**
-   ```js
-   let plat    = document.getElementById("platno1");
-   let platno1 = plat.getContext("2d");
-   ```
-   `platno1` is now an object with `fillStyle`, `fillRect`, `strokeStyle`, `arc`, etc. — the whole 2D drawing API.
-3. **In `ws.onmessage`'s `tipka` branch**, paint the canvas based on `msg.vrednost`:
-   ```js
-   platno1.fillStyle = (msg.vrednost == 1) ? "lightpink" : "white";
-   platno1.fillRect(0, 0, 200, 100);
-   ```
-   `fillRect(x, y, w, h)` fills a rectangle in the current `fillStyle` — here it covers the whole canvas (0,0 to 200×100), effectively repainting the background.
+### Wire format
 
-Everything else (browser → ESP32 LED control, ESP32 → browser button events, the text label, the Node router) is verbatim from joined-03.
+Single new message type, going chip → browser:
 
-### Running both sides
-
-Same procedure as joined-03 — Node first (`npm start` in `node-example-11/`), then upload + monitor the chip, then open the browser page.
-
-```powershell
-# from joined-example-04/node-example-11/
-npm install
-npm start
-
-# from joined-example-04/
-pio run --target upload
-pio device monitor
+```json
+{ "tipSporočila": "potenciometer", "pin": 34, "vrednost": 2048 }
 ```
 
-### Trying it
+`vrednost` is the raw 12-bit ADC value (0–4095). The existing `"LED"` route from joined-02/03 is kept in the Node router so you can layer a button into the HTML if you want browser → chip control too — works out of the box, no Node change required.
 
-- **LED path (browser → chip):** click *Pošlji JSON sporočilo* with the default JSON — LED on. Edit `"vrednost":0`, click again — LED off.
-- **Canvas path (chip → browser):** press the GPIO 18 button. The page:
-  - updates the *Zadnje sporočilo z ESP32* line with the JSON, and
-  - **fills the canvas pink**.
-  Release the button — canvas turns white again.
+### Running
 
-### Why a canvas at all?
+**1. Node hub.** From `joined-example-04/node-example-12/`:
 
-For this example, the canvas does what a CSS background colour change would also do — it's overkill. The point is **the API**, not the visual: once you have `getContext("2d")` and you're already inside a message handler, you can draw anything that streams in from the ESP32. Same hook also lets you draw:
+```powershell
+npm install
+npm start
+```
 
-- A live plot of analogue sensor readings (call `lineTo(x, y)` for each new sample).
-- A 2D position indicator (clear and redraw a circle every time the chip pushes new x/y).
-- A bar chart of recent values.
+**2. ESP32.** From `joined-example-04/`:
 
-So this example is the smallest possible "ESP32 stream → live visual" demo. Replace the fillRect with anything you'd draw and the rest of the pipeline still works.
+```powershell
+pio run --target upload
+pio device monitor          # optional
+```
+
+**3. Browser:** open `http://<laptop-ip>/`. The page shows two placeholder dashes until the chip connects, then both lines start updating as you turn the knob.
+
+### Troubleshooting
+
+- **Browser values stuck at `—`** → chip hasn't connected to Node yet, or browser hasn't connected. Both connection lines should appear in the Node terminal. Reload the browser, reset the chip.
+- **All readings show 0** → no potentiometer wired, or only the wiper is wired without 3.3 V/GND on the outer pins. Same fix as example-12.
+- **Values jitter wildly** → either ADC noise (normal — the ESP32's ADC isn't very clean; add a 0.1 µF cap between wiper and GND if it bothers you), or the wiper is floating (loose connection).
+- **`EACCES: permission denied 0.0.0.0:80`** → port 80 needs admin on Windows. Run PowerShell as admin or change `HTTP_PORT` to 8080.
+
+### Going further
+
+The pieces are all in place to plot live sensor data:
+
+- The browser already receives a value every 50 ms.
+- joined-03a already showed how to draw to a `<canvas>` from a message handler.
+
+Pulling them together: keep a rolling buffer of the last N values in JS, redraw the canvas as a line graph on each message. Minimum viable strip-chart in ~20 lines of additional code.
 
 ---
 
@@ -83,69 +84,70 @@ So this example is the smallest possible "ESP32 stream → live visual" demo. Re
 
 ### Strojna oprema
 
-Enako kot v [joined-example-03](../joined-example-03/) — ESP32 + tipka na GPIO 18 + vgrajena LED na GPIO 2 + prenosnik na istem WiFi-ju.
+- ESP32 razvojna ploščica na USB.
+- **10 kΩ potenciometer**: drsnik → **GPIO 34**, en zunanji pin → **3.3 V**, drugi zunanji pin → **GND**. Brez obeh zunanjih priključkov ADC bere 0 — enako pasti kot v example-12.
+- Prenosnik na istem WiFi-ju kot čip, ki poganja Node.
 
 ### Razporeditev map
 
 ```
 joined-example-04/
-├── platformio.ini          ← nespremenjeno iz joined-03
-├── src/main.cpp            ← nespremenjeno iz joined-03 (le glava komentarja je posodobljena)
-├── node-example-11/        ← Node stran
-│   ├── node-example-11.js    ← po obliki nespremenjeno glede na joined-03 node-example-10.js
-│   ├── node-example-11.html  ← NOVO: HTML5 platno, barva se na dogodke tipke
+├── platformio.ini          ← nastavitve ESP32 (samo WebSockets — brez ArduinoJson)
+├── src/main.cpp            ← bere ADC, pošilja JSON prek WebSocket
+├── node-example-12/        ← Node stran
+│   ├── node-example-12.js    ← Express + dva WSS + usmerjevalnik handlePotenciometer
+│   ├── node-example-12.html  ← brskalniški vmesnik (živi prikaz vrednosti)
 │   └── package.json
 └── README.md
 ```
 
-### Kaj je novega v primerjavi z joined-example-03
+### Kaj je novega v primerjavi z joined-example-03/03a
 
-Samo v `node-example-11.html`. Tri dodaje:
+- **Pretočni senzor (stran čipa).** Namesto zaznave roba diskretne tipke čip neprestano vzorči **analogni** vhod in vsakih 50 ms pošlje nov JSON. Nova vrednost `tipSporočila`: `"potenciometer"`.
+- **Višja frekvenca sporočil.** ~20 Hz namesto "ob vsakem pritisku tipke". Node namenoma **ne beleži vsakega sporočila** — pri 20 Hz bi zasul terminal. Beleži le neznana/napačna sporočila.
+- **Brskalnik kot živi prikaz.** `ws.onmessage` posodablja vrednost ob vsakem prejetem sporočilu — enak vzorec kot v joined-03a, le da se sproži veliko bolj pogosto. Naslednji korak bi bil izris na platno, ki si ga uvedla v joined-03a.
+- **ArduinoJson odstranjen iz `platformio.ini`.** Čip JSON le proizvaja (sestavi ga s surovim nizom + `String` združevanjem), ne porablja — razčlenjevalnika ne potrebujemo.
 
-1. **`<canvas id="platno1" width="200" height="100" style="border: 1px dashed black"></canvas>`** — risalna površina fiksne velikosti.
-2. **2D kontekst risanja dobimo enkrat na začetku skripte:**
-   ```js
-   let plat    = document.getElementById("platno1");
-   let platno1 = plat.getContext("2d");
-   ```
-   `platno1` je odslej objekt z `fillStyle`, `fillRect`, `strokeStyle`, `arc` itd. — celoten 2D risarski API.
-3. **V `ws.onmessage` veji za `tipka`** obarvamo platno glede na `msg.vrednost`:
-   ```js
-   platno1.fillStyle = (msg.vrednost == 1) ? "lightpink" : "white";
-   platno1.fillRect(0, 0, 200, 100);
-   ```
-   `fillRect(x, y, w, h)` zapolni pravokotnik s trenutnim `fillStyle` — tukaj pokrije celotno platno (0,0 do 200×100), kar v praksi ponovno pobarva ozadje.
+### Oblika sporočila
 
-Vse drugo (brskalnik → ESP32 nadzor LED, ESP32 → brskalnik dogodki tipke, besedilna oznaka, Node usmerjevalnik) je dobesedno iz joined-03.
+Ena nova vrsta sporočila, smer čip → brskalnik:
 
-### Zagon obeh strani
-
-Enak postopek kot v joined-03 — najprej Node (`npm start` v mapi `node-example-11/`), nato nalaganje + monitor čipa, nato odpri stran v brskalniku.
-
-```powershell
-# iz joined-example-04/node-example-11/
-npm install
-npm start
-
-# iz joined-example-04/
-pio run --target upload
-pio device monitor
+```json
+{ "tipSporočila": "potenciometer", "pin": 34, "vrednost": 2048 }
 ```
 
-### Preizkus
+`vrednost` je surova 12-bitna vrednost ADC-ja (0–4095). Obstoječa pot `"LED"` iz joined-02/03 je v Node usmerjevalniku ohranjena, tako da lahko v HTML dodaš gumb, če želiš nadzor brskalnik → čip — deluje brez sprememb v Node.
 
-- **Pot LED (brskalnik → čip):** klikni *Pošlji JSON sporočilo* s privzetim JSON-om — LED se prižge. Spremeni `"vrednost":0`, znova klikni — LED ugasne.
-- **Pot platna (čip → brskalnik):** pritisni tipko na GPIO 18. Stran:
-  - posodobi vrstico *Zadnje sporočilo z ESP32* z JSON-om in
-  - **platno obarva rožnato**.
-  Spusti tipko — platno spet pobeli.
+### Zagon
 
-### Zakaj sploh platno?
+**1. Node zvezdišče.** V mapi `joined-example-04/node-example-12/`:
 
-V tem primeru platno opravi enako, kot bi tudi sprememba CSS ozadja — gre za pretiravanje. Bistvo je **API**, ne vizualni učinek: ko imaš `getContext("2d")` in si že znotraj funkcije za sporočila, lahko narišeš karkoli, kar prihaja iz ESP32. Isto sidro omogoča tudi:
+```powershell
+npm install
+npm start
+```
 
-- Živi izris analognih meritev senzorjev (kliči `lineTo(x, y)` ob vsakem novem vzorcu).
-- Indikator 2D položaja (počisti in znova nariši krog ob vsakih novih koordinatah čipa).
-- Stolpčni grafikon zadnjih vrednosti.
+**2. ESP32.** Iz mape `joined-example-04/`:
 
-Ta primer je torej najmanjši možen "ESP32 tok → živi vidni prikaz". Zamenjaj fillRect s čimerkoli risarskim in preostala cev še naprej deluje.
+```powershell
+pio run --target upload
+pio device monitor          # neobvezno
+```
+
+**3. Brskalnik:** odpri `http://<IP-prenosnika>/`. Stran kaže dva pomišljaja, dokler se čip ne poveže, nato obe vrstici začneta posodabljati vrednosti, ko obračaš gumb potenciometra.
+
+### Odpravljanje težav
+
+- **Vrednosti v brskalniku obstanejo na `—`** → čip se še ni povezal na Node, ali brskalnik se ni povezal. V Node terminalu bi se morali pojaviti obe vrstici o povezavi. Osveži brskalnik, resetiraj čip.
+- **Vse meritve so 0** → potenciometer ni ožičen, ali pa je ožičen samo drsnik brez 3.3 V/GND na zunanjih pinih. Enaka rešitev kot v example-12.
+- **Vrednosti močno nihajo** → bodisi šum ADC-ja (običajno — ESP32 ADC ni zelo čist; med drsnik in GND vstavi kondenzator 0.1 µF, če te moti), bodisi drsnik lebdi (slab kontakt).
+- **`EACCES: permission denied 0.0.0.0:80`** → vrata 80 na Windowsih potrebujejo skrbniške pravice. Zaženi PowerShell kot skrbnik ali spremeni `HTTP_PORT` na 8080.
+
+### Korak naprej
+
+Vsi gradniki za izris meritev v živo so na voljo:
+
+- Brskalnik že prejema vrednost vsakih 50 ms.
+- joined-03a je pokazal, kako risati na `<canvas>` iz funkcije za sporočila.
+
+Združitev: hrani drsno okno zadnjih N vrednosti v JS-ju, ob vsakem sporočilu nariši platno kot grafikon. Najmanjši dejaven trakasti graf v ~20 dodatnih vrsticah kode.
