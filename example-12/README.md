@@ -1,18 +1,8 @@
-# Joined example 03 — Bidirectional: ESP32 button events also flow back
+# Example 12 — Read a potentiometer (ADC on GPIO 34)
 
-Picks up where [joined-example-02](../joined-example-02/) left off. Same three-piece topology and same JSON protocol, but **traffic now goes both ways**:
+First analogue input. The ESP32 reads a 10 kΩ potentiometer wired to **GPIO 34** with `analogRead()` and prints the value to the serial monitor every 50 ms. No WiFi, no HTTP, no LED control — purely the chip's ADC pipeline.
 
-- **Browser → Node → ESP32**: same as joined-02. Click → `{"tipSporočila":"LED",…}` → LED toggles.
-- **ESP32 → Node → Browser**: *new*. A physical button on GPIO 18 is read every loop iteration. When the state changes, the chip pushes `{"tipSporočila":"tipka",…}` back through Node, which broadcasts it to every connected browser. The browser updates a `<span id="izpis1">` with the latest value.
-
-So the chip is no longer a pure subscriber — it's a peer that publishes its own events.
-
-Nadgradnja [joined-example-02](../joined-example-02/). Enaka tridelna topologija in enak JSON protokol, vendar **promet teče v obe smeri**:
-
-- **Brskalnik → Node → ESP32**: enako kot v joined-02. Klik → `{"tipSporočila":"LED",…}` → LED se preklopi.
-- **ESP32 → Node → Brskalnik**: *novost*. Fizična tipka na GPIO 18 se bere v vsaki zanki. Ob spremembi stanja čip pošlje `{"tipSporočila":"tipka",…}` nazaj prek Node-a, ta pa ga razpošlje vsem priklopljenim brskalnikom. Brskalnik v `<span id="izpis1">` posodobi zadnjo vrednost.
-
-Čip ni več zgolj naročnik — postal je sovrstnik, ki tudi sam objavlja dogodke.
+Prva analogna meritev. ESP32 z `analogRead()` vsakih 50 ms prebere 10 kΩ potenciometer, priključen na **GPIO 34**, in vrednost izpiše v serijski monitor. Brez WiFi-ja, brez HTTP-ja, brez krmiljenja LED — samo ADC veriga čipa.
 
 ---
 
@@ -21,86 +11,52 @@ Nadgradnja [joined-example-02](../joined-example-02/). Enaka tridelna topologija
 ### Hardware
 
 - ESP32 dev board on USB.
-- A **push button on GPIO 18**, wired so a press pulls the pin to **HIGH** (button between 3.3 V and the pin, with an external pull-down resistor to GND keeping it LOW when unpressed). The sketch uses `pinMode(BUTTON_PIN, INPUT)` — no internal pull, so the external resistor is required.
+- 10 kΩ potentiometer:
+  - Outer pins to **3.3 V** and **GND**.
+  - Wiper (middle pin) to **GPIO 34**.
 
-  Easier alternative: switch to `INPUT_PULLUP` and wire the button to GND. That flips the polarity (HIGH = unpressed), so also swap the `1`/`0` branches in the `dataString` choice.
-- Laptop on the same WiFi with Node.js installed.
+GPIO 34 is on **ADC1** and is input-only — it doesn't have an internal pull-up/pull-down, which is fine here because the potentiometer always drives the line to a defined voltage.
 
-### Folder layout
+### What's new in this example
 
-```
-joined-example-03/
-├── platformio.ini          ← ESP32 build config
-├── src/main.cpp            ← ESP32 sketch — receives LED commands AND sends button events
-├── node-example-10/        ← Node side as a sibling subfolder
-│   ├── node-example-10.js    ← Express + two WSS + bidirectional router
-│   ├── node-example-10.html  ← Browser UI (JSON input + receive handler)
-│   └── package.json
-└── README.md
-```
+- **`analogRead(pin)`** — the ESP32's 12-bit ADC. Returns an integer in `0..4095`, mapping the input voltage `0..3.3 V` linearly. With the wiper at one end you get `0`, at the other end `~4095`, and in between values follow the dial.
+- **`Serial.println()` as a probe** — there's no HTML, no WebSocket; the serial monitor *is* the output device. Twist the knob and watch the numbers move. Many later examples reuse this exact reading on GPIO 34 (see [joined-example-04](../joined-example-04/) and [joined-example-04a](../joined-example-04a/) for the streamed-to-browser versions).
+- **The two-blink boot indicator** at the start of `setup()` — drives GPIO 2 HIGH/LOW twice. Useful to see at a glance whether the chip rebooted (e.g. after a brown-out).
 
-### What's new vs joined-example-02
+### Build, upload, monitor
 
-| | joined-02 | joined-03 |
-| --- | --- | --- |
-| Browser → ESP32 | ✅ JSON | ✅ JSON (unchanged) |
-| ESP32 → Browser | ❌ | ✅ new (button events) |
-| Node side | one `wss.on("message")` (browser only) | both WSS get `message` handlers + per-direction routing |
-| ESP32 side | passive subscriber | publishes button state changes |
-| HTML side | send only | send + `ws.onmessage` receive |
-| Shared protocol | one type (`"LED"`) | two types (`"LED"`, `"tipka"`) |
-
-The new C++ trick is **edge detection** + **`webSocket.sendTXT(...)`** — only send when state changes, not every loop iteration. The 50 ms `delay` at the end of `loop()` is crude debouncing.
-
-The new Node trick is folding both directions into one generic router: `handleIncoming(source, raw)` is called from either WSS's `message` event, parses the JSON, switches on `tipSporočila`, and dispatches to `handleLED` or `handleTipka`. Each handler then broadcasts to the *other* network of clients.
-
-### Wire format
-
-Two message types now share the same envelope:
-
-| `tipSporočila` | Direction | Example | Side effect |
-| --- | --- | --- | --- |
-| `"LED"`   | browser → ESP32 | `{"tipSporočila":"LED","pin":2,"vrednost":1}`    | LED on |
-| `"tipka"` | ESP32 → browser | `{"tipSporočila":"tipka","pin":18,"vrednost":1}` | UI shows it |
-
-Adding a third type (e.g. `"senzor"` for an analogue reading) means adding one `case` in Node's router + one handler that broadcasts to the right side + one chip-side or browser-side producer.
-
-### Running both sides
-
-**1. Node hub first.** From `joined-example-03/node-example-10/`:
+From inside `example-12/`:
 
 ```powershell
-npm install
-npm start
+pio run                       # build
+pio run --target upload       # flash
+pio device monitor            # 115200 baud
 ```
 
-**2. Browser:** open `http://<laptop-ip>/`. Page loads, opens WS to 8888. Node logs `Brskalnik se je povezal (vrata 8888).`
+No WiFi credentials needed — `secrets.h` is not used here.
 
-**3. Flash + monitor the ESP32.** From `joined-example-03/`:
+### Expected serial output
 
-```powershell
-pio run --target upload
-pio device monitor
+```
+0
+0
+12
+347
+1024
+2048
+3500
+4095
+4095
 ```
 
-Chip joins WiFi, opens WS to 8811. Node logs `ESP32 se je povezal (vrata 8811).`
-
-**4. Test the LED path** (browser → ESP32):
-Click **Pošlji JSON sporočilo**. Default JSON has `"vrednost":1` → LED on. Edit to `"vrednost":0` → click → LED off.
-
-**5. Test the button path** (ESP32 → browser):
-Press the GPIO 18 button. The browser page's `Zadnje sporočilo z ESP32` line updates to:
-```
-{"tipSporočila":"tipka","pin":18,"vrednost":1}
-```
-Release → updates to `vrednost":0`. Node terminal logs both events as `ESP32 → Node: …`.
+Twist the knob → values change smoothly. Hold steady → values are stable (small ±1 jitter is normal ADC noise).
 
 ### Troubleshooting
 
-- **Button does nothing** → wiring. With `pinMode(INPUT)` and no external pull resistor, the pin floats and `digitalRead` returns garbage. Either add a pull-down to GND, or change to `pinMode(BUTTON_PIN, INPUT_PULLUP)` + wire to GND + flip the polarity check.
-- **Browser doesn't update on button press, Node terminal does log `ESP32 → Node: …`** → browser's `ws.onmessage` isn't firing. DevTools (F12) → Console for JS errors, and Network → ws:// row → Messages.
-- **`EACCES: permission denied 0.0.0.0:80`** → port 80 needs admin on Windows. Run PowerShell as admin or change `HTTP_PORT` to 8080.
-- **`(ni veljaven JSON)` or `(nepoznan tipSporočila)`** in Node terminal → either the input field has malformed JSON, or you sent a message type Node doesn't have a handler for. Add a `case`.
+- **Always reads `0`** → the wiper is sitting at 0 V. Most likely cause: one of the outer pins isn't connected (typically the 3.3 V leg). Or you didn't twist the knob.
+- **Always reads `4095`** → wiper sitting at 3.3 V. Twist the knob.
+- **Values jump around wildly even without touching the pot** → the wire to GPIO 34 is loose, or you wired the wiper to a different pin and GPIO 34 is floating. Re-check the middle leg.
+- **No output at all in the monitor** → wrong baud (must be `115200`), or the wrong project was uploaded (the active PlatformIO project in VSCode's bottom status bar isn't necessarily the folder of the file you have open).
 
 ---
 
@@ -109,83 +65,49 @@ Release → updates to `vrednost":0`. Node terminal logs both events as `ESP32 �
 ### Strojna oprema
 
 - ESP32 razvojna ploščica na USB.
-- **Tipka na GPIO 18**, vezana tako, da pritisk potegne nožico na **HIGH** (tipka med 3.3 V in nožico, z zunanjim pull-down uporom na GND, ki nožico drži na LOW, ko tipka ni pritisnjena). Skica uporablja `pinMode(BUTTON_PIN, INPUT)` — brez notranjega potegnjenega upora, zato je zunanji obvezen.
+- 10 kΩ potenciometer:
+  - Zunanji nožici na **3.3 V** in **GND**.
+  - Drsnik (srednji pin) na **GPIO 34**.
 
-  Lažja alternativa: spremeni v `INPUT_PULLUP` in tipko priklopi na GND. To obrne polariteto (HIGH = ni pritisnjena), zato je treba zamenjati tudi veji `1`/`0` v izbiri `dataString`.
-- Prenosnik na istem WiFi-ju z nameščenim Node.js-jem.
+GPIO 34 je na **ADC1** in je samo vhod — nima notranjega potegnjenega upora, kar je tu v redu, ker potenciometer vedno žene linijo na določeno napetost.
 
-### Razporeditev map
+### Kaj je novega v tem primeru
 
-```
-joined-example-03/
-├── platformio.ini          ← nastavitve gradnje ESP32
-├── src/main.cpp            ← skica ESP32 — sprejema ukaze za LED IN pošilja dogodke tipke
-├── node-example-10/        ← Node stran kot sosednja podmapa
-│   ├── node-example-10.js    ← Express + dva WSS + dvosmerni usmerjevalnik
-│   ├── node-example-10.html  ← brskalniški vmesnik (JSON vnos + sprejemnik)
-│   └── package.json
-└── README.md
-```
+- **`analogRead(pin)`** — 12-bitni ADC ESP32. Vrne celo število `0..4095`, ki linearno preslika vhodno napetost `0..3.3 V`. Drsnik na enem koncu da `0`, na drugem `~4095`, vmes vrednosti sledijo gumbu.
+- **`Serial.println()` kot opazovalec** — nimaš HTML-ja in nobenega WebSocket-a; serijski monitor *je* izhodna naprava. Zavrti gumb in opazuj številke. Marsikateri kasnejši primer uporabi prav to branje na GPIO 34 (glej [joined-example-04](../joined-example-04/) in [joined-example-04a](../joined-example-04a/) za različici s pretokom v brskalnik).
+- **Dvojno utripanje ob zagonu** na začetku `setup()` — žene GPIO 2 dvakrat HIGH/LOW. Uporabno, da na hitro vidiš, ali se je čip ponovno zagnal (npr. po brown-outu).
 
-### Kaj je novega v primerjavi z joined-example-02
+### Prevajanje, nalaganje, spremljanje
 
-| | joined-02 | joined-03 |
-| --- | --- | --- |
-| Brskalnik → ESP32 | ✅ JSON | ✅ JSON (nespremenjeno) |
-| ESP32 → Brskalnik | ❌ | ✅ novo (dogodki tipke) |
-| Node stran | en `wss.on("message")` (samo brskalnik) | obe WSS dobita funkciji `message` + usmerjanje po smeri |
-| ESP32 stran | pasivni naročnik | objavlja spremembe stanja tipke |
-| HTML stran | samo pošiljanje | pošiljanje + `ws.onmessage` sprejem |
-| Skupni protokol | ena vrsta (`"LED"`) | dve vrsti (`"LED"`, `"tipka"`) |
-
-Nov C++ trik je **zaznavanje roba** + **`webSocket.sendTXT(...)`** — pošljemo le ob spremembi stanja, ne ob vsaki ponovitvi zanke. 50 ms `delay` na koncu `loop()` deluje kot groba debouncing zaščita.
-
-Nov Node trik je združitev obeh smeri v en generičen usmerjevalnik: `handleIncoming(source, raw)` se kliče iz obeh `wss.on("message")` dogodkov, razčleni JSON, usmerja po `tipSporočila` in pokliče `handleLED` ali `handleTipka`. Vsaka funkcija nato razpošlje *drugemu* omrežju odjemalcev.
-
-### Oblika sporočila
-
-Dve vrsti sporočil delita isto ovojnico:
-
-| `tipSporočila` | Smer | Primer | Stranski učinek |
-| --- | --- | --- | --- |
-| `"LED"`   | brskalnik → ESP32 | `{"tipSporočila":"LED","pin":2,"vrednost":1}`    | LED se prižge |
-| `"tipka"` | ESP32 → brskalnik | `{"tipSporočila":"tipka","pin":18,"vrednost":1}` | vmesnik to prikaže |
-
-Tretja vrsta (npr. `"senzor"` za analogno meritev) = en `case` v Node usmerjevalniku + ena funkcija, ki razpošlje na pravo stran + en proizvajalec sporočila bodisi na čipu bodisi v brskalniku.
-
-### Zagon obeh strani
-
-**1. Najprej Node zvezdišče.** V mapi `joined-example-03/node-example-10/`:
+V mapi `example-12/`:
 
 ```powershell
-npm install
-npm start
+pio run                       # prevedi
+pio run --target upload       # naloži kodo
+pio device monitor            # 115200 baud
 ```
 
-**2. Brskalnik:** odpri `http://<IP-prenosnika>/`. Stran se naloži, odpre WS na 8888. Node izpiše `Brskalnik se je povezal (vrata 8888).`
+WiFi podatki niso potrebni — `secrets.h` se tu ne uporablja.
 
-**3. Naloži in spremljaj ESP32.** Iz mape `joined-example-03/`:
+### Pričakovani serijski izpis
 
-```powershell
-pio run --target upload
-pio device monitor
+```
+0
+0
+12
+347
+1024
+2048
+3500
+4095
+4095
 ```
 
-Čip se pridruži WiFi-ju, odpre WS na 8811. Node izpiše `ESP32 se je povezal (vrata 8811).`
-
-**4. Preizkus LED smeri** (brskalnik → ESP32):
-Klikni **Pošlji JSON sporočilo**. Privzeti JSON ima `"vrednost":1` → LED se prižge. Spremeni v `"vrednost":0` → klikni → LED se ugasne.
-
-**5. Preizkus smeri tipke** (ESP32 → brskalnik):
-Pritisni tipko na GPIO 18. Vrstica `Zadnje sporočilo z ESP32` se posodobi v:
-```
-{"tipSporočila":"tipka","pin":18,"vrednost":1}
-```
-Spusti → posodobi v `vrednost":0`. Node terminal beleži oba dogodka kot `ESP32 → Node: …`.
+Zavrti gumb → vrednosti se gladko spreminjajo. Drži pri miru → vrednosti so stabilne (rahel ±1 nihaj je običajen ADC šum).
 
 ### Odpravljanje težav
 
-- **Tipka ne dela** → ožičenje. Z `pinMode(INPUT)` in brez zunanjega pull-down upora pin lebdi in `digitalRead` vrne smeti. Dodaj pull-down na GND ali spremeni v `pinMode(BUTTON_PIN, INPUT_PULLUP)` + tipko vežeš na GND + obrneš polariteto v `if/else`.
-- **Brskalnik se ne posodobi ob pritisku tipke, Node pa beleži `ESP32 → Node: …`** → `ws.onmessage` v brskalniku ne sproži. DevTools (F12) → Konzola za JS napake, Network → vrstica ws:// → Messages.
-- **`EACCES: permission denied 0.0.0.0:80`** → vrata 80 na Windowsih potrebujejo skrbniške pravice. Zaženi PowerShell kot skrbnik ali spremeni `HTTP_PORT` na 8080.
-- **`(ni veljaven JSON)` ali `(nepoznan tipSporočila)`** v Node terminalu → bodisi vnosno polje ima napačen JSON, bodisi si poslala vrsto sporočila, za katero Node nima funkcije. Dodaj `case`.
+- **Vedno izpiše `0`** → drsnik je na 0 V. Najpogostejši vzrok: ena od zunanjih nožic ni priključena (običajno noga 3.3 V). Ali pa nisi zavrtela gumba.
+- **Vedno izpiše `4095`** → drsnik je na 3.3 V. Zavrti gumb.
+- **Vrednosti skačejo, čeprav se gumba ne dotikaš** → žica do GPIO 34 je odklopljena ali pa si drsnik priklopila na drug pin in GPIO 34 lebdi. Preveri srednjo nožico.
+- **V monitorju ni nobenega izpisa** → napačen baud (mora biti `115200`) ali pa je bil naložen napačen projekt (aktivni PlatformIO projekt v spodnji statusni vrstici VSCode ni nujno mapa odprte datoteke).
