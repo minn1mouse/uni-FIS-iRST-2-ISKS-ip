@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ESP32 LED kontrola</title>
+  <style>
+    html { font-family: Helvetica; text-align: center; }
+    body { margin-top: 40px; }
+    h1   { color: #444; margin: 30px auto; }
+    h3   { color: #444; margin-bottom: 10px; }
+    .row { margin-bottom: 30px; }
+    .btn {
+      display: inline-block; width: 140px; color: white; padding: 12px 20px;
+      text-decoration: none; font-size: 18px; margin: 5px; border-radius: 5px;
+      cursor: pointer; border: none;
+    }
+    .btn.on        { background-color: #27ae60; }
+    .btn.off       { background-color: #c0392b; }
+    .state         { font-weight: bold; }
+    .state.is-on   { color: #27ae60; }
+    .state.is-off  { color: #c0392b; }
+  </style>
+</head>
+<body>
+  <h1>ESP32 - kontrola LED diod</h1>
+
+  <div class="row">
+    <h3>Modra LED (vgrajena, pin 2) - stanje:
+        <span class="state %BLUE_CLASS%">%BLUE%</span></h3>
+    <a class="btn on"  href="/1">Prižgi</a>
+    <a class="btn off" href="/0">Ugasni</a>
+  </div>
+
+  <div class="row">
+    <h3>Rdeča LED (pin D5) - stanje:
+        <span class="state %RED_CLASS%">%RED%</span></h3>
+    <a class="btn on"  href="/3">Prižgi</a>
+    <a class="btn off" href="/2">Ugasni</a>
+  </div>
+
+  <div class="row">
+    <h3>Zelena LED (pin D18) - stanje:
+        <span class="state %GREEN_CLASS%">%GREEN%</span></h3>
+    <a class="btn on"  href="/5">Prižgi</a>
+    <a class="btn off" href="/4">Ugasni</a>
+  </div>
+
+  <p>HTTP strežnik je zagnan.</p>
+</body>
+</html>
