@@ -29,7 +29,13 @@ Letter suffixes (e.g. `05a`, `03a`, `04a`) mean **"variant that reuses the previ
 | [shared/include/wifi_log.h](shared/include/wifi_log.h) | ESP32 examples | `printWifiTarget()` — logs which network the chip is about to join. |
 | [shared/node/config.js](shared/node/config.example.js) | Node examples | Exports `SERVER_HOST` only; port is per-example inline. |
 
-See [CLAUDE.md](CLAUDE.md) for the full shared-infrastructure rules (`build_flags = -I"${PROJECT_DIR}/../shared/include"` — **path must be quoted** because the repo lives under a path containing a space).
+PlatformIO projects that need the shared headers add this line to their `platformio.ini`:
+
+```ini
+build_flags = -I"${PROJECT_DIR}/../shared/include"
+```
+
+**The path must be quoted** because the repo lives under a path containing a space — without quotes, scons splits `-I` on the space and the include silently breaks.
 
 ### `example-NN/` — ESP32 chip-side
 
@@ -127,7 +133,13 @@ Mapi `shared/include/` in `shared/node/` hranita poverilnice in razvijalčev IP 
 | [shared/include/wifi_log.h](shared/include/wifi_log.h) | ESP32 primeri | `printWifiTarget()` — izpiše, na katero omrežje se bo čip povezal. |
 | [shared/node/config.js](shared/node/config.example.js) | Node primeri | Izvoz samo `SERVER_HOST`; vrata so v vsakem primeru posebej. |
 
-Celotna pravila so v [CLAUDE.md](CLAUDE.md) (`build_flags = -I"${PROJECT_DIR}/../shared/include"` — **pot mora biti v narekovajih**, ker je v poti repozitorija presledek).
+PlatformIO projekti, ki potrebujejo skupne glave, v `platformio.ini` dodajo:
+
+```ini
+build_flags = -I"${PROJECT_DIR}/../shared/include"
+```
+
+**Pot mora biti v narekovajih**, ker je v poti repozitorija presledek — brez narekovajev scons razdeli `-I` po presledku in vključitev tiho odpove.
 
 ### `example-NN/` — stran ESP32
 
