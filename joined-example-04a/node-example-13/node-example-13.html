@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket — graf potenciometra</title>
+</head>
+<body>
+    <p>Pozdravljen IoT vmesnik!</p>
+
+    <p>Surovo sporočilo: <span id="izpis1">—</span></p>
+    <p>Vrednost: <strong id="izpis2">—</strong> <span style="color:#888">(0–4095)</span></p>
+
+    <canvas id="platno1" width="400" height="100" style="border: 1px dashed #099999;"></canvas>
+
+    <script>
+        "use strict";
+
+        let izpis1 = document.getElementById("izpis1");
+        let izpis2 = document.getElementById("izpis2");
+
+        // EN: Graf — a tiny "strip-chart" widget. It owns one canvas and a
+        //     rolling y-buffer. Each call to `izriši(yValue)` appends the
+        //     new value (dropping the oldest when full), clears the canvas,
+        //     and draws a polyline through all stored points. The x-array
+        //     is fixed at construction (one column per pixel of width),
+        //     so the time axis advances 1 px per message — at the chip's
+        //     20 Hz that's 20 px/s, or ~20 seconds across a 400 px canvas.
+        // SL: Graf — droben "trakasti" prikazovalnik. Lasten ima eno
+        //     platno in drsno tabelo y-vrednosti. Vsak klic `izriši(y)`
+        //     doda novo vrednost (in odstrani najstarejšo, ko je tabela
+        //     polna), počisti platno in nariše lomljenko skozi vse točke.
+        //     Tabela x je fiksna ob konstrukciji (en stolpec na piksel
+        //     širine), zato se časovna os premakne za 1 px na sporočilo
+        //     — pri 20 Hz čipa to pomeni 20 px/s, oziroma ~20 sekund
+        //     prikaza na 400 px širokem platnu.
+        class Graf {
+            constructor(idPlatna) {
+                this.can1 = document.getElementById(idPlatna);
+                this.plat1 = this.can1.getContext("2d");
+                this.plat1.strokeStyle = "#ff0000";
+
+                this.maxGrafX = this.can1.width;
+                this.maxGrafY = this.can1.height;
+
+                this.y = [];
+                // EN: precompute x-coordinates: [0, 1, 2, …, width-1].
+                // SL: izračun x-koordinat vnaprej: [0, 1, 2, …, width-1].
+                this.x = [];
+                for (let i = 0; i < this.maxGrafX; i++) this.x[i] = i;
+            }
+
+            // EN: append a new y-value. If the buffer is full, drop the
+            //     oldest first (FIFO).
+            // SL: dodaj novo y-vrednost. Če je tabela polna, najprej
+            //     odstrani najstarejšo (FIFO).
+            dodajVrednostAliBrišiInDodaj(yValue) {
+                if (this.y.length == this.maxGrafX + 1) {
+                    this.y.splice(0, 1);
+                    this.y[this.maxGrafX] = yValue;
+                } else {
+                    this.y.push(yValue);
+                }
+            }
+
+            // EN: clear canvas, then stroke a polyline through every (x, y)
+            //     point. y is scaled: 0..4095 → 0..maxGrafY, then inverted
+            //     so 0 sits at the bottom (canvas y grows downward).
+            // SL: počisti platno, nato nariši lomljenko skozi vse točke
+            //     (x, y). y se skalira: 0..4095 → 0..maxGrafY, nato pa
+            //     obrne, tako da je 0 spodaj (y platna raste navzdol).
+            izriši(yValue) {
+                this.dodajVrednostAliBrišiInDodaj(yValue);
+                this.plat1.clearRect(0, 0, this.maxGrafX, this.maxGrafY);
+                this.plat1.beginPath();
+                for (let i = 0; i < this.y.length; i++) {
+                    this.plat1.lineTo(
+                        this.x[i],
+                        this.maxGrafY - (this.y[i] / 4095) * this.maxGrafY
+                    );
+                }
+                this.plat1.stroke();
+            }
+        }
+
+        let graf1 = new Graf("platno1");
+
+        let ws = new WebSocket(`ws://${location.hostname}:8888`);
+
+        ws.onmessage = function (event) {
+            let msg = JSON.parse(event.data);
+            switch (msg.tipSporočila) {
+                case "potenciometer":
+                    izpis1.textContent = event.data;
+                    izpis2.textContent = msg.vrednost;
+                    graf1.izriši(msg.vrednost);
+                    break;
+            }
+        };
+    </script>
+</body>
+</html>
