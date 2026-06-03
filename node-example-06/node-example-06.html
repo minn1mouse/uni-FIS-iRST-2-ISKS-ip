@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test</title>
+</head>
+<body>
+    Pozdrav s spletne strani HTML — Uporaba knjižnice express!
+    <br>
+    <button id="pošljiSporočilo" onclick="pošljiSporočilo()">Pošlji sporočilo</button>
+    <br>
+    Sporočilo: <input id="sporočilo" size="50" value="Testno sporočilo!">
+
+    <script>
+        "use strict";
+
+        let ws = new WebSocket(`ws://${location.hostname}:8888`);
+
+        // EN: button click handler — reads the current value of the
+        //     input field and pushes it through the open socket. The
+        //     server's `ws.on("message", ...)` handler logs it.
+        // SL: funkcija ob kliku gumba — prebere trenutno vrednost
+        //     vnosnega polja in jo pošlje prek odprtega vtičnika.
+        //     Strežnikova funkcija `ws.on("message", ...)` jo
+        //     zabeleži.
+        function pošljiSporočilo() {
+            let sporočilo = document.getElementById("sporočilo").value;
+            ws.send(sporočilo);
+        }
+    </script>
+</body>
+</html>
