@@ -1,4 +1,4 @@
-# uni-FIS-iRST-2-ISKS-ip
+# uni-FIS-VS-iRST-2-ISKS-ip
 
 Coursework for **FIS Novo mesto — VS RST 2 / ISK: Internet stvari (IoT) in Kiberfizični sistemi (CPS)**. A collection of small, self-contained examples that progress from blinking an LED to bidirectional Browser ↔ Node ↔ ESP32 communication over WebSockets.
 
@@ -103,13 +103,16 @@ Each subfolder is self-contained.
 ```powershell
 # ESP32 example (run from inside the folder)
 pio run                       # build
-pio run --target upload       # flash
+pio run --target upload       # flash firmware
+pio run --target uploadfs     # flash LittleFS — only if the project stores HTML/data on the chip
 pio device monitor            # serial monitor (baud per platformio.ini)
 
 # Node example (run from inside the folder)
 npm install
 npm start
 ```
+
+**About `--target uploadfs`.** Some examples store the HTML on the chip's flash filesystem (LittleFS) and serve it directly from the chip's own HTTP server: `example-05c`, `example-06`, `example-07`, `example-08`, `example-09`, `example-10`, `example-11`, `homework-01`, `homework-02`. Those need the extra `pio run --target uploadfs` step at least once after every change to their `data/` folder. The newer Node-hosted examples (`joined-example-*`, `seminar-assignment`) serve HTML from Express on the laptop, so the chip's flash holds only firmware and `uploadfs` is **not** needed.
 
 See each subproject's `README.md` for full build/run details and any wiring.
 
@@ -212,12 +215,15 @@ Vsaka podmapa je samostojna.
 ```powershell
 # ESP32 primer (zaženi iz mape)
 pio run                       # prevedi
-pio run --target upload       # naloži na čip
+pio run --target upload       # naloži strojno programsko opremo
+pio run --target uploadfs     # naloži LittleFS — samo če projekt hrani HTML/podatke na čipu
 pio device monitor            # serijski monitor (baud iz platformio.ini)
 
 # Node primer (zaženi iz mape)
 npm install
 npm start
 ```
+
+**O `--target uploadfs`.** Nekateri primeri hranijo HTML na čipovem datotečnem sistemu (LittleFS) in ga strežejo neposredno iz HTTP strežnika na čipu: `example-05c`, `example-06`, `example-07`, `example-08`, `example-09`, `example-10`, `example-11`, `homework-01`, `homework-02`. Ti potrebujejo dodaten korak `pio run --target uploadfs` vsaj enkrat po vsaki spremembi v njihovi mapi `data/`. Novejši primeri z Node-om (`joined-example-*`, `seminar-assignment`) HTML strežejo iz Express-a na prenosniku, zato je na čipovem flashu samo strojna programska oprema in `uploadfs` **ni** potreben.
 
 Podrobnosti o prevajanju, zagonu in žicah so v `README.md` vsakega podprojekta.
