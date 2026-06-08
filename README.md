@@ -10,12 +10,13 @@ Učno gradivo za **FIS Novo mesto — VS RST 2 / ISK: Internet stvari (IoT) in K
 
 ### Repository structure
 
-Four parallel series, each in its own top-level folders:
+Four parallel series plus a standalone deliverable, each in its own top-level folders:
 
 - **`example-NN/`** — ESP32 sketches (PlatformIO, Arduino framework). Chip-side only.
 - **`node-example-NN/`** — Node.js projects. Laptop-side only. Each has its own `package.json`.
 - **`joined-example-NN/`** — full pairs: outer folder is a PlatformIO project for the chip, with a `node-example-MM/` subfolder for the matching Node hub. Designed to run together.
 - **`homework-NN/`** — graded homework assignments.
+- **`seminar-assignment/`** — final closed-loop feedback control project.
 
 Letter suffixes (e.g. `05a`, `03a`, `04a`) mean **"variant that reuses the previous example's chip code but changes the front-end"** — so you can diff just the HTML/CSS/JS without re-reading the same C++ twice.
 
@@ -89,7 +90,11 @@ Two `WebSocketServer` instances live in the Node hub: **8888** for browsers, **8
 | [homework-01](homework-01/) | Three-LED HTTP control with templated HTML. |
 | [homework-02](homework-02/) | Three-LED HTTP control, single-message UI. |
 | [homework-03](homework-03/) | Meta-pointer — the deliverable consists of [joined-example-02](joined-example-02/), [03](joined-example-03/) and [03a](joined-example-03a/). |
-| [homework-04](homework-04/) | Closed-loop LED control with photoresistor feedback. |
+| [homework-04](homework-04/) | Meta-pointer — the deliverable consists of [example-12](example-12/), [joined-example-04](joined-example-04/) and [04a](joined-example-04a/). |
+
+### `seminar-assignment/`
+
+The course's culminating deliverable: a closed-loop control system. The browser commands a green LED through a Node.js hub; the ESP32 uses a photoresistor as feedback to verify the actuator is actually emitting light. On mismatch, a reserve red LED lights and the onboard blue blinks as an alarm. See [seminar-assignment/README.md](seminar-assignment/README.md) for the full write-up.
 
 ### Building and running
 
@@ -114,12 +119,13 @@ See each subproject's `README.md` for full build/run details and any wiring.
 
 ### Struktura repozitorija
 
-Štiri vzporedne serije, vsaka v svojih mapah na najvišjem nivoju:
+Štiri vzporedne serije ter samostojna končna oddaja, vsaka v svojih mapah na najvišjem nivoju:
 
 - **`example-NN/`** — skice za ESP32 (PlatformIO, ogrodje Arduino). Samo stran čipa.
 - **`node-example-NN/`** — projekti Node.js. Samo stran prenosnika. Vsak ima svoj `package.json`.
 - **`joined-example-NN/`** — celotni pari: zunanja mapa je PlatformIO projekt za čip, znotraj je podmapa `node-example-MM/` z ujemajočim Node zvezdiščem. Zasnovano za skupni zagon.
 - **`homework-NN/`** — domače naloge.
+- **`seminar-assignment/`** — zaključni projekt zaprtozančnega kontrolnega sistema.
 
 Črkovne pripone (npr. `05a`, `03a`, `04a`) pomenijo **"različica, ki znova uporabi kodo prejšnjega primera na čipu, spremeni pa stran v brskalniku"** — tako lahko primerjaš samo HTML/CSS/JS, brez ponovnega prebiranja istega C++.
 
@@ -193,7 +199,11 @@ V Node zvezdišču tečeta dva `WebSocketServer`-ja: **8888** za brskalnike, **8
 | [homework-01](homework-01/) | Krmiljenje treh LED prek HTTP s predlogo HTML. |
 | [homework-02](homework-02/) | Krmiljenje treh LED prek HTTP, vmesnik z enim sporočilom. |
 | [homework-03](homework-03/) | Meta-kazalec — oddajo sestavljajo [joined-example-02](joined-example-02/), [03](joined-example-03/) in [03a](joined-example-03a/). |
-| [homework-04](homework-04/) | Zaprtozančno krmiljenje LED s povratno informacijo iz fotoupora. |
+| [homework-04](homework-04/) | Meta-kazalec — oddajo sestavljajo [example-12](example-12/), [joined-example-04](joined-example-04/) in [04a](joined-example-04a/). |
+
+### `seminar-assignment/`
+
+Sklepna seminarska oddaja predmeta: zaprtozančni kontrolni sistem. Brskalnik prek Node.js zvezdišča ukazuje zeleni LED; ESP32 s fotouporom kot povratno zvezo preverja, ali izvršni element dejansko oddaja svetlobo. Ob neujemanju zasveti rezervna rdeča LED in vgrajena modra utripa kot alarm. Celoten opis je v [seminar-assignment/README.md](seminar-assignment/README.md).
 
 ### Prevajanje in zagon
 

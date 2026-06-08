@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seminarska naloga — kontrolni sistem z povratno zanko</title>
+    <style>
+        html { font-family: Helvetica; text-align: center; }
+        body { margin-top: 40px; }
+        h1   { color: #444; }
+        .btn {
+            display: inline-block; width: 140px; color: white; padding: 12px 20px;
+            text-decoration: none; font-size: 18px; margin: 5px; border-radius: 5px;
+            cursor: pointer; border: none;
+        }
+        .btn.on  { background-color: #27ae60; }
+        .btn.off { background-color: #c0392b; }
+        .row     { margin: 24px 0; }
+        .reading { font-size: 20px; }
+        .raw     { color: #888; font-family: monospace; }
+        .status {
+            display: inline-block; padding: 12px 24px; border-radius: 5px;
+            font-size: 18px; font-weight: bold;
+        }
+        .status.ok   { background-color: #d4efdf; color: #1e8449; }
+        .status.err  { background-color: #f5b7b1; color: #922b21; }
+    </style>
+</head>
+<body>
+    <h1>Zelena LED — kontrolni sistem (Korak 3)</h1>
+
+    <div class="row">
+        <button class="btn on"  onclick="pošljiLED(1)">Prižgi</button>
+        <button class="btn off" onclick="pošljiLED(0)">Ugasni</button>
+    </div>
+
+    <div class="row">
+        <span id="statusBox" class="status ok">Čakam na stanje …</span>
+    </div>
+
+    <div class="row reading">
+        Fotoupornik: <strong id="ldrValue">—</strong>
+        <span style="color:#888">(0–4095)</span>
+    </div>
+
+    <div class="row">
+        <canvas id="platno1" width="600" height="160"
+                style="border: 1px dashed #099999;"></canvas>
+    </div>
+
+    <div class="row raw">
+        Surovo sporočilo: <span id="ldrRaw">—</span>
+    </div>
+
+    <script>
+        "use strict";
+
+        let ldrValue  = document.getElementById("ldrValue");
+        let ldrRaw    = document.getElementById("ldrRaw");
+        let statusBox = document.getElementById("statusBox");
+
+        // EN: map the chip's three `stanje` values onto a CSS class and
+        //     Slovenian banner text. Anything else falls back to OK
+        //     styling with the raw value, so we notice if the protocol
+        //     drifts.
+        // SL: tri vrednosti `stanje` iz čipa prevedemo v CSS razred in
+        //     slovensko besedilo. Karkoli drugega prikaže OK slog z
+        //     dobesedno vrednostjo, da takoj opazimo neujemanje protokola.
+        const statusText = {
+            "ok":            { cls: "ok",  msg: "Sistem deluje pravilno." },
+            "napaka_vklop":  { cls: "err", msg: "Napaka: ukazana je bila VKLOP, a senzor ne zazna svetlobe (LED odstranjena, pregorela ali zakrita)." },
+            "napaka_izklop": { cls: "err", msg: "Napaka: ukazana je bila IZKLOP, a senzor zaznava svetlobo." },
+        };
+
+        // EN: Graf — strip-chart widget reused from joined-example-04a.
+        //     One canvas + a FIFO of y-values. Each `izriši(y)` appends
+        //     the new value and redraws a polyline scaled from 0..4095
+        //     into the canvas height. At the chip's 20 Hz that's 20 px/s,
+        //     so a 600 px canvas shows the last ~30 s of history.
+        // SL: Graf — trakasti prikazovalnik, prevzet iz joined-example-04a.
+        //     Eno platno + FIFO tabela y-vrednosti. Vsak `izriši(y)` doda
+        //     novo vrednost in nariše lomljenko, skalirano iz 0..4095 v
+        //     višino platna. Pri 20 Hz čipa to pomeni 20 px/s, zato 600 px
+        //     platno prikazuje zadnjih ~30 s zgodovine.
+        class Graf {
+            constructor(idPlatna) {
+                this.can1  = document.getElementById(idPlatna);
+                this.plat1 = this.can1.getContext("2d");
+                this.plat1.strokeStyle = "#ff0000";
+
+                this.maxGrafX = this.can1.width;
+                this.maxGrafY = this.can1.height;
+
+                this.y = [];
+                this.x = [];
+                for (let i = 0; i < this.maxGrafX; i++) this.x[i] = i;
+            }
+
+            dodajVrednostAliBrišiInDodaj(yValue) {
+                if (this.y.length == this.maxGrafX + 1) {
+                    this.y.splice(0, 1);
+                    this.y[this.maxGrafX] = yValue;
+                } else {
+                    this.y.push(yValue);
+                }
+            }
+
+            izriši(yValue) {
+                this.dodajVrednostAliBrišiInDodaj(yValue);
+                this.plat1.clearRect(0, 0, this.maxGrafX, this.maxGrafY);
+                this.plat1.beginPath();
+                for (let i = 0; i < this.y.length; i++) {
+                    this.plat1.lineTo(
+                        this.x[i],
+                        this.maxGrafY - (this.y[i] / 4095) * this.maxGrafY
+                    );
+                }
+                this.plat1.stroke();
+            }
+        }
+
+        let graf1 = new Graf("platno1");
+
+        let ws = new WebSocket(`ws://${location.hostname}:8888`);
+
+        function pošljiLED(vrednost) {
+            // EN: pin 5 = green LED on the ESP32. The chip filters by pin
+            //     so other LED pins can be added later without touching
+            //     the wire format.
+            // SL: pin 5 = zelena LED na ESP32. Čip filtrira po pinu, da
+            //     lahko kasneje dodamo druge LED pine brez sprememb v
+            //     obliki sporočila.
+            let msg = { "tipSporočila": "LED", "pin": 5, "vrednost": vrednost };
+            ws.send(JSON.stringify(msg));
+        }
+
+        ws.onmessage = function (event) {
+            let msg = JSON.parse(event.data);
+            switch (msg.tipSporočila) {
+                case "fotoupornik":
+                    ldrRaw.textContent   = event.data;
+                    ldrValue.textContent = msg.vrednost;
+                    graf1.izriši(msg.vrednost);
+                    break;
+                case "status":
+                    let s = statusText[msg.stanje]
+                        || { cls: "ok", msg: msg.stanje };
+                    statusBox.className   = "status " + s.cls;
+                    statusBox.textContent = s.msg;
+                    break;
+            }
+        };
+    </script>
+</body>
+</html>
